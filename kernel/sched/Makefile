@@ -4,7 +4,7 @@ endif
 
 CFLAGS_core.o := -fno-omit-frame-pointer
 
-obj-y += core.o clock.o idle_task.o fair.o rt.o stop_task.o sched_avg.o
+obj-y += core.o clock.o idle_task.o fair.o rt.o stop_task.o
 obj-$(CONFIG_SMP) += cpupri.o
 obj-$(CONFIG_SCHED_AUTOGROUP) += auto_group.o
 obj-$(CONFIG_SCHEDSTATS) += stats.o
