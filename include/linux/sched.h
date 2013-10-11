@@ -2821,6 +2821,4 @@ static inline unsigned long rlimit_max(unsigned int limit)
 	return task_rlimit_max(current, limit);
 }
 
-#endif /* __KERNEL__ */
-
 #endif
