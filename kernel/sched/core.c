@@ -4226,7 +4226,11 @@ static void set_rq_offline(struct rq *rq)
 	}
 }
 
-static int __cpuinit
+/*
+ * migration_call - callback that gets triggered when a CPU is added.
+ * Here we can start up the necessary migration thread for the new CPU.
+ */
+static int
 migration_call(struct notifier_block *nfb, unsigned long action, void *hcpu)
 {
 	int cpu = (long)hcpu;
