@@ -988,6 +988,86 @@ bl_clear_layoutdriver(struct nfs_server *server)
 	return 0;
 }
 
+static bool
+is_aligned_req(struct nfs_page *req, unsigned int alignment)
+{
+	return IS_ALIGNED(req->wb_offset, alignment) &&
+	       IS_ALIGNED(req->wb_bytes, alignment);
+}
+
+static void
+bl_pg_init_read(struct nfs_pageio_descriptor *pgio, struct nfs_page *req)
+{
+	if (pgio->pg_dreq != NULL &&
+	    !is_aligned_req(req, SECTOR_SIZE))
+		nfs_pageio_reset_read_mds(pgio);
+	else
+		pnfs_generic_pg_init_read(pgio, req);
+}
+
+static bool
+bl_pg_test_read(struct nfs_pageio_descriptor *pgio, struct nfs_page *prev,
+		struct nfs_page *req)
+{
+	if (pgio->pg_dreq != NULL &&
+	    !is_aligned_req(req, SECTOR_SIZE))
+		return false;
+
+	return pnfs_generic_pg_test(pgio, prev, req);
+}
+
+/*
+ * Return the number of contiguous bytes for a given inode
+ * starting at page frame idx.
+ */
+static u64 pnfs_num_cont_bytes(struct inode *inode, pgoff_t idx)
+{
+	struct address_space *mapping = inode->i_mapping;
+	pgoff_t end;
+
+	/* Optimize common case that writes from 0 to end of file */
+	end = DIV_ROUND_UP(i_size_read(inode), PAGE_CACHE_SIZE);
+	if (end != NFS_I(inode)->npages) {
+		rcu_read_lock();
+		end = page_cache_next_hole(mapping, idx + 1, ULONG_MAX);
+		rcu_read_unlock();
+	}
+
+	if (!end)
+		return i_size_read(inode) - (idx << PAGE_CACHE_SHIFT);
+	else
+		return (end - idx) << PAGE_CACHE_SHIFT;
+}
+
+static void
+bl_pg_init_write(struct nfs_pageio_descriptor *pgio, struct nfs_page *req)
+{
+	if (pgio->pg_dreq != NULL &&
+	    !is_aligned_req(req, PAGE_CACHE_SIZE)) {
+		nfs_pageio_reset_write_mds(pgio);
+	} else {
+		u64 wb_size;
+		if (pgio->pg_dreq == NULL)
+			wb_size = pnfs_num_cont_bytes(pgio->pg_inode,
+						      req->wb_index);
+		else
+			wb_size = nfs_dreq_bytes_left(pgio->pg_dreq);
+
+		pnfs_generic_pg_init_write(pgio, req, wb_size);
+	}
+}
+
+static bool
+bl_pg_test_write(struct nfs_pageio_descriptor *pgio, struct nfs_page *prev,
+		 struct nfs_page *req)
+{
+	if (pgio->pg_dreq != NULL &&
+	    !is_aligned_req(req, PAGE_CACHE_SIZE))
+		return false;
+
+	return pnfs_generic_pg_test(pgio, prev, req);
+}
+
 static const struct nfs_pageio_ops bl_pg_read_ops = {
 	.pg_init = pnfs_generic_pg_init_read,
 	.pg_test = pnfs_generic_pg_test,
