@@ -845,7 +845,7 @@ static void dbs_check_cpu(struct cpu_dbs_info_s *this_dbs_info)
 	}
 
 	/* calculate the scaled load across CPU */
-	load_at_max_freq = (cur_load * policy->cur)/policy->cpuinfo.max_freq;
+	load_at_max_freq = (cur_load * policy->cur)/policy->max;
 
 	/* Check for frequency increase */
 	if (max_abs_load > dbs_tuners_ins.up_threshold) {
@@ -875,7 +875,7 @@ static void dbs_check_cpu(struct cpu_dbs_info_s *this_dbs_info)
 	} else {
 		/* Calculate the next frequency proportional to load */
 		unsigned int freq_next;
-		freq_next = max_abs_load * policy->cpuinfo.max_freq / 100;
+		freq_next = max_abs_load * policy->max / 100;
 
 		/* No longer fully busy, reset rate_mult */
 		this_dbs_info->rate_mult = 1;
