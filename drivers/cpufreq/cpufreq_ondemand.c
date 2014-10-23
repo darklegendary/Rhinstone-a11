@@ -920,7 +920,15 @@ static void dbs_check_cpu(struct cpu_dbs_info_s *this_dbs_info)
 	} else {
 		/* Calculate the next frequency proportional to load */
 		unsigned int freq_next;
-		freq_next = max_abs_load * policy->max / 100;
+
+		if (load >= 25)
+			freq_next = policy->min + load * (policy->max - policy->min) / 100;
+		else {
+			freq_next = load * policy->max / 100;
+			if (freq_next <	300000)	{
+				freq_next = policy->min;
+			}
+		}
 
 		/* No longer fully busy, reset rate_mult */
 		this_dbs_info->rate_mult = 1;
@@ -936,7 +944,6 @@ static void dbs_check_cpu(struct cpu_dbs_info_s *this_dbs_info)
 				  dbs_tuners_ins.down_differential_multi_core) &&
 				freq_next < dbs_tuners_ins.optimal_freq)
 				freq_next = dbs_tuners_ins.optimal_freq;
-
 		}
 		if (!dbs_tuners_ins.powersave_bias) {
 			__cpufreq_driver_target(policy, freq_next,
