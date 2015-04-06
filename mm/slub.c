@@ -22,7 +22,6 @@
 #include <linux/prefetch.h>
 
 #include <trace/events/kmem.h>
-#include <htc_debug/stability/htc_report_meminfo.h>
 
 
 
@@ -1967,7 +1966,6 @@ void *kmalloc_order_trace(size_t size, gfp_t flags, unsigned int order)
 
 	if (ret) {
 		struct page *page = virt_to_page(ret);
-		kmalloc_count(page, 1);
 	}
 	trace_kmalloc(_RET_IP_, ret, size, PAGE_SIZE << order, flags);
 	return ret;
