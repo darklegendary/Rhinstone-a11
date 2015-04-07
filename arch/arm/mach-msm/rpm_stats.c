@@ -258,17 +258,6 @@ void msm_rpm_dump_stat(void)
 
 	int i;
 
-	if (rpm_stats_dev[DEV_V2].init) {
-		reg = rpm_stats_dev[DEV_V2].reg_base;
-		pr_info("%s: %u, %llums, %u, %llums\n", __func__,
-			msm_rpmstats_read_long_register_v2(reg, 0, offsetof(struct msm_rpm_stats_data_v2, count)),
-			get_time_in_msec(msm_rpmstats_read_quad_register_v2(reg, 0,
-							offsetof(struct msm_rpm_stats_data_v2, accumulated))),
-			msm_rpmstats_read_long_register_v2(reg, 1, offsetof(struct msm_rpm_stats_data_v2, count)),
-			get_time_in_msec(msm_rpmstats_read_quad_register_v2(reg, 1,
-							offsetof(struct msm_rpm_stats_data_v2, accumulated))));
-	}
-
 	if (rpm_stats_dev[DEV_V3].init) {
 		reg = rpm_stats_dev[DEV_V3].reg_base;
 		for (i = 0; i < rpm_stats_dev[DEV_V3].num_records; i++) {
@@ -283,10 +272,6 @@ void msm_rpm_dump_stat(void)
 
 			if (data_v3.is_sleep_mode)
 				data_v3.total_duration += (arch_counter_get_cntpct() - data_v3.sleep_timestamp);
-
-			pr_info("[K] sleep_info_m.%d - %u (%d), %llums\n", i, data_v3.count,
-									data_v3.is_sleep_mode,
-									get_time_in_msec(data_v3.total_duration));
 		}
 	}
 }
