@@ -33,9 +33,9 @@ ifeq ($(CONFIG_MMU),)
 MMUEXT		:= -nommu
 endif
 
-ifeq ($(CONFIG_FRAME_POINTER),y)
-KBUILD_CFLAGS	+=-fno-omit-frame-pointer -mapcs -mno-sched-prolog
-endif
+#ifeq ($(CONFIG_FRAME_POINTER),y)
+KBUILD_CFLAGS	+=-fomit-frame-pointer
+#endif
 
 #ifeq ($(CONFIG_CC_STACKPROTECTOR),y)
 #KBUILD_CFLAGS	+=-fstack-protector
@@ -260,9 +260,6 @@ core-$(CONFIG_VMWARE_MVP)   += arch/arm/mvp/
 core-y				+= arch/arm/kernel/ arch/arm/mm/ arch/arm/common/
 core-y				+= arch/arm/net/
 core-y				+= $(machdirs) $(platdirs)
-
-drivers-$(CONFIG_OPROFILE)      += arch/arm/oprofile/
-core-y				+= arch/arm/perfmon/
 
 libs-y				:= arch/arm/lib/ $(libs-y)
 
