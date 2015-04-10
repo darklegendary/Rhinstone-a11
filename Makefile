@@ -1,6 +1,6 @@
 VERSION = 3
 PATCHLEVEL = 4
-SUBLEVEL = 0
+SUBLEVEL = 40
 EXTRAVERSION =
 NAME = Raging Rabbit
 
@@ -193,7 +193,7 @@ SUBARCH := $(shell uname -m | sed -e s/i.86/i386/ -e s/sun4u/sparc64/ \
 # Note: Some architectures assign CROSS_COMPILE in their arch/*/Makefile
 export KBUILD_BUILDHOST := $(SUBARCH)
 ARCH		?= arm
-CROSS_COMPILE	?= /home/shinru2004/ndk/arm-eabi-4.7/bin/arm-eabi-
+CROSS_COMPILE	?= 
 
 # Architecture as present in compile.h
 UTS_MACHINE 	:= $(ARCH)
@@ -245,8 +245,8 @@ CONFIG_SHELL := $(shell if [ -x "$$BASH" ]; then echo $$BASH; \
 
 HOSTCC       = ccache gcc
 HOSTCXX      = ccache g++
-HOSTCFLAGS   = -Wall -Wmissing-prototypes -Wstrict-prototypes -O2 -fomit-frame-pointer
-HOSTCXXFLAGS = -O2
+HOSTCFLAGS   = $(GRAPHITEFLAGS) -Wall -Wmissing-prototypes -Wstrict-prototypes -O2 -fomit-frame-pointer -std=gnu89
+HOSTCXXFLAGS = $(GRAPHITEFLAGS) -O2
 
 # Decide whether to build built-in, modular, or both.
 # Normally, just do built-in.
@@ -330,7 +330,7 @@ include $(srctree)/scripts/Kbuild.include
 
 AS		= $(CROSS_COMPILE)as
 LD		= $(CROSS_COMPILE)ld
-CC		= ccache $(CROSS_COMPILE)gcc
+CC		= ccache $(CROSS_COMPILE)gcc $(GRAPHITEFLAGS)
 CPP		= $(CC) -E
 AR		= $(CROSS_COMPILE)ar
 NM		= $(CROSS_COMPILE)nm
@@ -347,12 +347,19 @@ CHECK		= sparse
 
 CHECKFLAGS     := -D__linux__ -Dlinux -D__STDC__ -Dunix -D__unix__ \
 		  -Wbitwise -Wno-return-void $(CF)
+
+GRAPHITEFLAGS	= -fgraphite -fgraphite-identity -floop-flatten -ftree-loop-linear -floop-interchange -floop-strip-mine -floop-block -floop-nest-optimize -ftree-loop-distribution
+
+KERNELFLAGS	= -mcpu=cortex-a7 -mtune=cortex-a7 -marm -mfpu=neon-vfpv4 -mvectorize-with-neon-quad -munaligned-access \
+		  -ffast-math -funsafe-math-optimizations -std=gnu89 -fgcse-after-reload \
+		  -fno-tree-vectorize -floop-interchange -fivopts -fpredictive-commoning -fsingle-precision-constant \
+		  -ftree-loop-im -fforce-addr -pthread \
+		  $(GRAPHITEFLAGS)
 CFLAGS_MODULE   =
 AFLAGS_MODULE   =
 LDFLAGS_MODULE  =
-CFLAGS_KERNEL	= -mcpu=cortex-a7 -mtune=cortex-a7 \
-		  -marm -mfpu=neon-vfpv4 -mvectorize-with-neon-quad
-AFLAGS_KERNEL	=
+CFLAGS_KERNEL	= $(KERNELFLAGS)
+AFLAGS_KERNEL	= $(KERNELFLAGS)
 CFLAGS_GCOV	= -fprofile-arcs -ftest-coverage
 
 
@@ -370,7 +377,9 @@ KBUILD_CFLAGS   := -Wall -Wundef -Wstrict-prototypes -Wno-trigraphs \
 		   -Werror-implicit-function-declaration \
 		   -Wno-format-security \
 		   -fno-delete-null-pointer-checks \
-		   -marm -mfpu=neon-vfpv4
+		   --param l1-cache-size=16 --param l1-cache-line-size=16 --param l2-cache-size=1024 \
+		   $(KERNELFLAGS)
+			
 KBUILD_AFLAGS_KERNEL :=
 KBUILD_CFLAGS_KERNEL :=
 KBUILD_AFLAGS   := -D__ASSEMBLY__
@@ -566,6 +575,10 @@ else
 KBUILD_CFLAGS	+= -O2
 endif
 
+# conserve stack if available
+# do this early so that an architecture can override it.
+KBUILD_CFLAGS   += $(call cc-option,-fconserve-stack)
+
 include $(srctree)/arch/$(SRCARCH)/Makefile
 
 ifneq ($(CONFIG_FRAME_WARN),0)
@@ -630,9 +643,6 @@ KBUILD_CFLAGS += $(call cc-disable-warning, pointer-sign)
 
 # disable invalid "can't wrap" optimizations for signed / pointers
 KBUILD_CFLAGS	+= $(call cc-option,-fno-strict-overflow)
-
-# conserve stack if available
-KBUILD_CFLAGS   += $(call cc-option,-fconserve-stack)
 
 # use the deterministic mode of AR if available
 KBUILD_ARFLAGS := $(call ar-option,D)
