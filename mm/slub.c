@@ -4708,5 +4708,4 @@ static int __init slab_proc_init(void)
 	return 0;
 }
 module_init(slab_proc_init);
-#endif 
 #endif /* CONFIG_SLABINFO */
