@@ -156,6 +156,7 @@ static bool mdss_mdp_kcal_is_panel_on(void)
 
 	for (i = 0; i < mdata->nctl; i++) {
 		ctl = mdata->ctl_off + i;
+		if (ctl->power_on)
 			return true;
 	}
 
