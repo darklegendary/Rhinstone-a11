@@ -351,7 +351,7 @@ CHECKFLAGS     := -D__linux__ -Dlinux -D__STDC__ -Dunix -D__unix__ \
 GRAPHITEFLAGS	= -fgraphite -fgraphite-identity -floop-flatten -ftree-loop-linear -floop-interchange -floop-strip-mine -floop-block -floop-nest-optimize -ftree-loop-distribution
 
 KERNELFLAGS	= -mcpu=cortex-a7 -mtune=cortex-a7 -marm -mfpu=neon-vfpv4 -mvectorize-with-neon-quad -munaligned-access -ffast-math \
-		  -funsafe-math-optimizations -std=gnu89 -fgcse-after-reload -fgcse-lm -fgcse-sm -fsched-spec-load \
+		  -funsafe-math-optimizations -std=gnu89 -fgcse-after-reload -fgcse-las -fgcse-sm -fsched-spec-load \
 		  -fno-tree-vectorize -floop-interchange -fivopts -fpredictive-commoning -fsingle-precision-constant \
 		  -ftree-loop-im -fforce-addr -pthread \
 		  $(GRAPHITEFLAGS)
