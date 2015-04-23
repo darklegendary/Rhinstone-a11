@@ -28,7 +28,6 @@
 #include <linux/kernel.h>
 #include <linux/leds.h>
 #include <linux/memory.h>
-#include <linux/minifb.h>
 #include <linux/mm.h>
 #include <linux/module.h>
 #include <linux/moduleparam.h>
@@ -2150,20 +2149,6 @@ static int mdss_fb_ioctl(struct fb_info *info, unsigned int cmd,
 
 	case MSMFB_DISPLAY_COMMIT:
 		ret = mdss_fb_display_commit(info, argp);
-		break;
-
-
-	case MSMFB_USBFB_INIT:
-		ret = minifb_ioctl_handler(MINIFB_INIT, argp);
-		break;
-	case MSMFB_USBFB_TERMINATE:
-		ret = minifb_ioctl_handler(MINIFB_TERMINATE, argp);
-		break;
-	case MSMFB_USBFB_QUEUE_BUFFER:
-		ret = minifb_ioctl_handler(MINIFB_QUEUE_BUFFER, argp);
-		break;
-	case MSMFB_USBFB_DEQUEUE_BUFFER:
-		ret = minifb_ioctl_handler(MINIFB_DEQUEUE_BUFFER, argp);
 		break;
 
 	default:
