@@ -18,8 +18,6 @@
 #if defined(CONFIG_FB)
 #include <linux/notifier.h>
 #include <linux/fb.h>
-#elif defined(CONFIG_HAS_EARLYSUSPEND)
-#include <linux/earlysuspend.h>
 #endif
 #include <linux/hrtimer.h>
 #include <linux/i2c.h>
@@ -56,10 +54,10 @@
 #define SUPPORT_FINGER_DATA_CHECKSUM 0x0F
 
 
-#define D(x...) printk(KERN_DEBUG "[TP] " x)
-#define I(x...) printk(KERN_INFO "[TP] " x)
-#define W(x...) printk(KERN_WARNING "[TP][WARNING] " x)
-#define E(x...) printk(KERN_ERR "[TP][ERROR] " x)
+#define D(x...) //printk(KERN_DEBUG "[TP] " x)
+#define I(x...) //printk(KERN_INFO "[TP] " x)
+#define W(x...) //printk(KERN_WARNING "[TP][WARNING] " x)
+#define E(x...) //printk(KERN_ERR "[TP][ERROR] " x)
 #define DIF(x...) \
 	if (debug_flag) \
 	printk(KERN_DEBUG "[TP][DEBUG] " x) \
@@ -240,8 +238,6 @@ struct himax_ts_data {
 	struct notifier_block fb_notif;
 	struct workqueue_struct *himax_att_wq;
 	struct delayed_work work_att;
-#elif defined(CONFIG_HAS_EARLYSUSPEND)
-	struct early_suspend early_suspend;
 #endif
 	int pre_finger_data[10][2];
 	struct himax_i2c_platform_data *pdata;
@@ -292,9 +288,6 @@ static struct himax_ts_data *private_ts;
 #if defined(CONFIG_FB)
 static int fb_notifier_callback(struct notifier_block *self,
 				 unsigned long event, void *data);
-#elif defined(CONFIG_HAS_EARLYSUSPEND)
-static void himax_ts_early_suspend(struct early_suspend *h);
-static void himax_ts_late_resume(struct early_suspend *h);
 #endif
 
 #if defined (CONFIG_UX500_SOC_DB8500)
@@ -7120,12 +7113,6 @@ static int himax8528_probe(struct i2c_client *client, const struct i2c_device_id
 	}
 	INIT_DELAYED_WORK(&ts->work_att, himax_fb_register);
 	queue_delayed_work(ts->himax_att_wq, &ts->work_att, msecs_to_jiffies(15000));
-
-#elif defined(CONFIG_HAS_EARLYSUSPEND)
-	ts->early_suspend.level = EARLY_SUSPEND_LEVEL_STOP_DRAWING + 1;
-	ts->early_suspend.suspend = himax_ts_early_suspend;
-	ts->early_suspend.resume = himax_ts_late_resume;
-	register_early_suspend(&ts->early_suspend);
 #endif
 	himax_touch_sysfs_init();
 
@@ -7246,8 +7233,6 @@ static int himax8528_remove(struct i2c_client *client)
 #ifdef CONFIG_FB
 	if (fb_unregister_client(&ts->fb_notif))
 		dev_err(&client->dev, "Error occurred while unregistering fb_notifier.\n");
-#elif defined(CONFIG_HAS_EARLYSUSPEND)
-	unregister_early_suspend(&ts->early_suspend);
 #endif
 
 	if (!ts->use_irq)
@@ -7476,25 +7461,10 @@ static int fb_notifier_callback(struct notifier_block *self,
 
 	return 0;
 }
-#elif defined(CONFIG_HAS_EARLYSUSPEND)
-static void himax_ts_early_suspend(struct early_suspend *h)
-{
-	struct himax_ts_data *ts;
-	ts = container_of(h, struct himax_ts_data, early_suspend);
-	himax8528_suspend(ts->client, PMSG_SUSPEND);
-}
-
-static void himax_ts_late_resume(struct early_suspend *h)
-{
-	struct himax_ts_data *ts;
-	ts = container_of(h, struct himax_ts_data, early_suspend);
-	himax8528_resume(ts->client);
-
-}
 #endif
 
 static const struct dev_pm_ops himax8528_pm_ops = {
-#if (!defined(CONFIG_FB) && !defined(CONFIG_HAS_EARLYSUSPEND))
+#if (!defined(CONFIG_FB))
 	.suspend = himax8528_suspend,
 	.resume  = himax8528_resume,
 #else
