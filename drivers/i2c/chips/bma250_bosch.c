@@ -32,9 +32,9 @@
 #include <linux/bma250.h>
 #include <mach/rpm-regulator.h>
 
-#define D(x...) printk(KERN_DEBUG "[GSNR][BMA250_BOSCH] " x)
-#define I(x...) printk(KERN_INFO "[GSNR][BMA250_BOSCH] " x)
-#define E(x...) printk(KERN_ERR "[GSNR][BMA250_BOSCH] " x)
+#define D(x...) //printk(KERN_DEBUG "[GSNR][BMA250_BOSCH] " x)
+#define I(x...) //printk(KERN_INFO "[GSNR][BMA250_BOSCH] " x)
+#define E(x...) //printk(KERN_ERR "[GSNR][BMA250_BOSCH] " x)
 
 #define HTC_ATTR 1
 
