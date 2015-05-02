@@ -16,8 +16,6 @@
 #if defined(CONFIG_FB)
 #include <linux/notifier.h>
 #include <linux/fb.h>
-#elif defined(CONFIG_HAS_EARLYSUSPEND)
-#include <linux/earlysuspend.h>
 #endif
 #include <linux/i2c.h>
 #include <linux/input.h>
@@ -48,7 +46,7 @@
 #include <mach/rpm-regulator.h>
 #include <mach/devices_cmdline.h>
 
-#define D(x...) pr_info(x)
+#define D(x...) //pr_info(x)
 
 #define I2C_RETRY_COUNT 10
 
@@ -123,8 +121,6 @@ struct cm3629_info {
 	struct notifier_block fb_notif;
 	struct workqueue_struct *cm3629_fb_wq;
 	struct delayed_work work_fb;
-#elif defined(CONFIG_HAS_EARLYSUSPEND)
-	struct early_suspend early_suspend;
 #endif
 	struct i2c_client *i2c_client;
 	struct workqueue_struct *lp_wq;
@@ -321,11 +317,6 @@ static int _cm3629_I2C_Read2(uint16_t slaveAddr,
 	for (i = 0; i < length; i++) {
 		*(pdata+i) = buffer[i];
 	}
-#if 0
-	
-	printk(KERN_DEBUG "[cm3629] %s: I2C_RxData[0x%x] = 0x%x\n",
-		__func__, slaveAddr, buffer);
-#endif
 	return ret;
 }
 
@@ -334,12 +325,6 @@ static int _cm3629_I2C_Write2(uint16_t SlaveAddress,
 {
 	char buffer[3];
 	int ret = 0;
-#if 0
-	
-	printk(KERN_DEBUG
-	"[cm3629] %s: _cm3629_I2C_Write_Byte[0x%x, 0x%x, 0x%x]\n",
-		__func__, SlaveAddress, cmd, *data);
-#endif
 	if (length > 3) {
 		pr_err(
 			"[PS_ERR][cm3629 error]%s: length %d> 2: \n",
@@ -2309,7 +2294,6 @@ static ssize_t ps_workaround_table_show(struct device *dev,
 	char temp_str[64] = "";
 
 	sprintf(table_str, "mapping table size = %d\n", lpi->mapping_size);
-	printk(KERN_DEBUG "%s: table_str = %s\n", __func__, table_str);
 	for (i = 0; i < lpi->mapping_size; i++) {
 		memset(temp_str, 0, 64);
 		if ((i == 0) || ((i % 10) == 1))
@@ -2317,7 +2301,6 @@ static ssize_t ps_workaround_table_show(struct device *dev,
 		else
 			sprintf(temp_str, ", [%d] = 0x%x", i, lpi->mapping_table[i]);
 		strcat(table_str, temp_str);
-		printk(KERN_DEBUG "%s: [%d]: table_str = %s\n", __func__, i, table_str);
 		if ((i != 0) && (i % 10) == 0)
 			strcat(table_str, "\n");
 	}
@@ -2731,26 +2714,6 @@ static int fb_notifier_callback(struct notifier_block *self,
 	}
 
 	return 0;
-}
-
-#elif defined(CONFIG_HAS_EARLYSUSPEND)
-static void cm3629_early_suspend(struct early_suspend *h)
-{
-	struct cm3629_info *lpi = lp_info;
-
-	D("[LS][cm3629] %s\n", __func__);
-
-	if (lpi->ps_enable == 0)
-		sensor_lpm_power(1);
-	else
-		D("[PS][cm3629] %s: Psensor enable, so did not enter lpm\n", __func__);
-}
-
-static void cm3629_late_resume(struct early_suspend *h)
-{
-	sensor_lpm_power(0);
-	D("[LS][cm3629] %s\n", __func__);
-
 }
 #endif
 static int cm3629_ldo_init(int init)
@@ -3257,12 +3220,6 @@ static int __devinit cm3629_probe(struct i2c_client *client,
 	}
 	INIT_DELAYED_WORK(&lpi->work_fb, cm3629_fb_register);
 	queue_delayed_work(lpi->cm3629_fb_wq, &lpi->work_fb, msecs_to_jiffies(30000));
-#elif defined(CONFIG_HAS_EARLYSUSPEND)
-	lpi->early_suspend.level =
-			EARLY_SUSPEND_LEVEL_BLANK_SCREEN + 1;
-	lpi->early_suspend.suspend = cm3629_early_suspend;
-	lpi->early_suspend.resume = cm3629_late_resume;
-	register_early_suspend(&lpi->early_suspend);
 #endif
 	ret = cm3629_ldo_init(1);
 	if (ret) {
