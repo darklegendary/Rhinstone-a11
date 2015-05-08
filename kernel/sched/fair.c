@@ -106,24 +106,17 @@ unsigned int __read_mostly sysctl_sched_wake_to_idle;
  * and reduces their over-scheduling. Synchronous workloads will still
  * have immediate wakeup/sleep latencies.
  */
-#ifdef CONFIG_ZEN_INTERACTIVE
-unsigned int sysctl_sched_wakeup_granularity = 500000UL;
-unsigned int normalized_sysctl_sched_wakeup_granularity = 500000UL;
+unsigned int sysctl_sched_wakeup_granularity = NSEC_PER_SEC / HZ / 2;
+unsigned int normalized_sysctl_sched_wakeup_granularity = NSEC_PER_SEC / HZ / 2;
 
 const_debug unsigned int sysctl_sched_migration_cost = 250000UL;
-#else
-unsigned int sysctl_sched_wakeup_granularity = 1000000UL;
-unsigned int normalized_sysctl_sched_wakeup_granularity = 1000000UL;
-
-const_debug unsigned int sysctl_sched_migration_cost = 500000UL;
-#endif
 
 /*
  * The exponential sliding  window over which load is averaged for shares
  * distribution.
  * (default: 10msec)
  */
-unsigned int __read_mostly sysctl_sched_shares_window = 10000000UL;
+unsigned int __read_mostly sysctl_sched_shares_window = 8333333UL;
 
 #ifdef CONFIG_CFS_BANDWIDTH
 /*
