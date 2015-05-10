@@ -67,7 +67,8 @@ EXPORT_SYMBOL(__mutex_init);
  * We also put the fastpath first in the kernel image, to make sure the
  * branch is predicted by the CPU as default-untaken.
  */
-asmlinkage void __sched __mutex_lock_slowpath(atomic_t *lock_count)
+static __used noinline void __sched
+__mutex_lock_slowpath(atomic_t *lock_count)
 	__attribute__((hot));
 
 /**
@@ -105,7 +106,7 @@ void __sched mutex_lock(struct mutex *lock)
 EXPORT_SYMBOL(mutex_lock);
 #endif
 
-asmlinkage void __sched __mutex_unlock_slowpath(atomic_t *lock_count)
+static __used noinline void __sched __mutex_unlock_slowpath(atomic_t *lock_count)
 	__attribute__((hot));
 
 /**
