@@ -22,143 +22,240 @@
 #include <linux/io.h>
 #include <linux/err.h>
 #include <linux/types.h>
+#include <linux/workqueue.h>
+#include <linux/delay.h>
+#include <linux/atomic.h>
+#include <linux/sched.h>
+#include <linux/random.h>
 #include <mach/msm_iomap.h>
 #include <mach/socinfo.h>
-#include <mach/msm_bus.h>
 
 #define DRIVER_NAME "msm_rng"
 
+/* Device specific register offsets */
 #define PRNG_DATA_OUT_OFFSET    0x0000
 #define PRNG_STATUS_OFFSET	0x0004
 #define PRNG_LFSR_CFG_OFFSET	0x0100
 #define PRNG_CONFIG_OFFSET	0x0104
 
+/* Device specific register masks and config values */
 #define PRNG_LFSR_CFG_MASK	0xFFFF0000
 #define PRNG_LFSR_CFG_CLOCKS	0x0000DDDD
 #define PRNG_CONFIG_MASK	0xFFFFFFFD
 #define PRNG_HW_ENABLE		0x00000002
 
-#define MAX_HW_FIFO_DEPTH 16                     
-#define MAX_HW_FIFO_SIZE (MAX_HW_FIFO_DEPTH * 4) 
+#define MAX_HW_FIFO_DEPTH 16                     /* FIFO is 16 words deep */
+#define MAX_HW_FIFO_SIZE (MAX_HW_FIFO_DEPTH * 4) /* FIFO is 32 bits wide  */
 
+#define FIFO_REFILL_MSECS (10)
+
+#define RANDBUF_SIZE (4096)
+#define RANDBUF_CNT (RANDBUF_SIZE/sizeof(unsigned long))
 
 struct msm_rng_device {
 	struct platform_device *pdev;
 	void __iomem *base;
 	struct clk *prng_clk;
-	uint32_t qrng_perf_client;
 };
 
-static int msm_rng_read(struct hwrng *rng, void *data, size_t max, bool wait)
+static int __msm_rng_read(struct hwrng *rng, void *data, size_t max)
 {
 	struct msm_rng_device *msm_rng_dev;
-	struct platform_device *pdev;
 	void __iomem *base;
-	size_t maxsize;
 	size_t currsize = 0;
-	unsigned long val;
 	unsigned long *retdata = data;
-	int ret;
 
 	msm_rng_dev = (struct msm_rng_device *)rng->priv;
-	pdev = msm_rng_dev->pdev;
 	base = msm_rng_dev->base;
 
-	
-	maxsize = min_t(size_t, MAX_HW_FIFO_SIZE, max);
+	/* calculate max size bytes to transfer back to caller */
+	//max = min_t(size_t, MAX_HW_FIFO_SIZE, max);
+	//max &= ~3;
 
-	
-	if (maxsize < 4)
-		return 0;
-
-	
-	ret = clk_prepare_enable(msm_rng_dev->prng_clk);
-	if (ret) {
-		dev_err(&pdev->dev, "failed to enable clock in callback\n");
+	/* enable PRNG clock */
+	if (clk_enable(msm_rng_dev->prng_clk)) {
+		dev_err(&msm_rng_dev->pdev->dev,
+			"failed to enable clock in callback\n");
 		return 0;
 	}
-	if (msm_rng_dev->qrng_perf_client) {
-		ret = msm_bus_scale_client_update_request(
-					msm_rng_dev->qrng_perf_client, 1);
-		if (ret)
-			pr_err("bus_scale_client_update_req failed!\n");
-	}
-	
+
+	/* read random data from h/w */
 	do {
-		
-		if (!(readl_relaxed(base + PRNG_STATUS_OFFSET) & 0x00000001))
-			break;	
+		/* check status bit if data is available */
+		if (!(readl_relaxed(base + PRNG_STATUS_OFFSET) & 1))
+			break;	/* no data to read so just bail */
 
-		
-		val = readl_relaxed(base + PRNG_DATA_OUT_OFFSET);
-		if (!val)
-			break;	
+		/* read FIFO */
+		*(retdata++) = readl_relaxed(base + PRNG_DATA_OUT_OFFSET);
+		currsize += sizeof(unsigned long);
+	} while (currsize < max);
 
-		
-		*(retdata++) = val;
-		currsize += 4;
-
-		
-		if ((maxsize - currsize) < 4)
-			break;
-	} while (currsize < maxsize);
-	if (msm_rng_dev->qrng_perf_client)
-		ret = msm_bus_scale_client_update_request(
-					msm_rng_dev->qrng_perf_client, 0);
-	
-	clk_disable_unprepare(msm_rng_dev->prng_clk);
+	/* vote to turn off clock */
+	clk_disable(msm_rng_dev->prng_clk);
 
 	return currsize;
 }
+
+static int msm_rng_read(struct hwrng *rng, void *data, size_t max, bool wait);
 
 static struct hwrng msm_rng = {
 	.name = DRIVER_NAME,
 	.read = msm_rng_read,
 };
 
-static int __devinit msm_rng_enable_hw(struct msm_rng_device *msm_rng_dev)
-{
-	unsigned long val = 0;
-	unsigned long reg_val = 0;
-	int ret = 0;
+/* Implement arch_get_random_TYPE.  Precache data to avoid toggling the hwrng
+ * clock every call.
+ */
+static unsigned long *randbuf;
+static volatile int randbuf_head;
+static atomic_t randbuf_tail;
+static atomic_t bufwork_running = ATOMIC_INIT(1);
+static void do_randbuf_fill(struct work_struct *work) {
+	int cnt;
+	struct msm_rng_device *msm_rng_dev;
+	msm_rng_dev = (struct msm_rng_device *)msm_rng.priv;
 
-	if (msm_rng_dev->qrng_perf_client) {
-		ret = msm_bus_scale_client_update_request(
-				msm_rng_dev->qrng_perf_client, 1);
-		if (ret)
-			pr_err("bus_scale_client_update_req failed!\n");
+	if (clk_prepare(msm_rng_dev->prng_clk))
+		goto out;
+
+again:
+	cnt = atomic_read(&randbuf_tail) - randbuf_head - 1;
+	if (cnt <= 0)
+		cnt += RANDBUF_CNT;
+	if (randbuf_head + cnt >= RANDBUF_CNT)
+		cnt = RANDBUF_CNT - randbuf_head;
+	if (cnt > 16)
+		cnt = 16;
+
+	cnt = __msm_rng_read(&msm_rng, randbuf + randbuf_head,
+		cnt * sizeof(unsigned long));
+	smp_wmb();
+	randbuf_head = (randbuf_head + (cnt / sizeof(unsigned long)))
+		% RANDBUF_CNT;
+
+	if (cnt && atomic_read(&randbuf_tail) !=
+		(randbuf_head + 1) % RANDBUF_CNT) {
+		if (!schedule_timeout_interruptible(
+			msecs_to_jiffies(FIFO_REFILL_MSECS)))
+			goto again;
 	}
-	
-	ret = clk_prepare_enable(msm_rng_dev->prng_clk);
+
+	clk_unprepare(msm_rng_dev->prng_clk);
+out:
+	atomic_set(&bufwork_running, 0);
+}
+static DECLARE_WORK(randbuf_work, do_randbuf_fill);
+
+static int msm_rng_read(struct hwrng *rng, void *data, size_t max, bool wait)
+{
+	int idx, new, cnt = 0;
+	unsigned long *retdata = data;
+
+	max &= ~(sizeof(unsigned long)-1);
+	if (unlikely(!max))
+		return 0;
+
+	while (max) {
+retry:
+		smp_rmb();
+		idx = atomic_read(&randbuf_tail);
+		new = (idx + 1) % RANDBUF_CNT;
+		if (idx == randbuf_head)
+			goto empty;
+		*retdata = randbuf[idx];
+		if (idx != atomic_cmpxchg(&randbuf_tail, idx, new))
+			goto retry;
+
+		retdata++;
+		max -= sizeof(unsigned long);
+		cnt += sizeof(unsigned long);
+		continue;
+
+empty:
+		if (!atomic_xchg(&bufwork_running, 1))
+			schedule_work(&randbuf_work);
+		if (!wait || !randbuf || schedule_timeout_interruptible(
+			msecs_to_jiffies(FIFO_REFILL_MSECS)))
+			return cnt;
+	}
+	new = new - randbuf_head - 1;
+	if ((new <= 0 || new >= 128) &&
+		!atomic_xchg(&bufwork_running, 1))
+		schedule_work(&randbuf_work);
+	return cnt;
+}
+
+static void msm_rng_read_randomness(struct work_struct *work) {
+	char buf[256];
+	int cnt;
+
+	cnt = msm_rng_read(&msm_rng, buf, 256, 1);
+	if (likely(cnt))
+		add_device_randomness(buf, cnt);
+}
+static DECLARE_DELAYED_WORK(randomness_work, msm_rng_read_randomness);
+
+/* Initialize the RNG: if the hw is already running, try to read some entropy
+ * for the random core.  If not (or if reading fails), reset the hw.
+ */
+static int __devinit msm_rng_enable_hw(struct msm_rng_device *rng)
+{
+	unsigned long reg_val = 0;
+	int ret = 0, cnt = 0;
+	unsigned long buf[16];
+
+	/* Enable the PRNG CLK */
+	ret = clk_prepare_enable(rng->prng_clk);
 	if (ret) {
-		dev_err(&(msm_rng_dev->pdev)->dev,
+		dev_err(&(rng->pdev)->dev,
 				"failed to enable clock in probe\n");
 		return -EPERM;
 	}
-	
-	val = readl_relaxed(msm_rng_dev->base + PRNG_CONFIG_OFFSET) &
-					PRNG_HW_ENABLE;
-	
-	if (val != PRNG_HW_ENABLE) {
-		val = readl_relaxed(msm_rng_dev->base + PRNG_LFSR_CFG_OFFSET);
-		val &= PRNG_LFSR_CFG_MASK;
-		val |= PRNG_LFSR_CFG_CLOCKS;
-		writel_relaxed(val, msm_rng_dev->base + PRNG_LFSR_CFG_OFFSET);
 
-		/* The PRNG CONFIG register should be first written */
+	reg_val = readl_relaxed(rng->base + PRNG_CONFIG_OFFSET);
+	if (reg_val & PRNG_HW_ENABLE) {
+		for (cnt = 0; cnt < 16; cnt++) {
+			if (!(readl_relaxed(rng->base + PRNG_STATUS_OFFSET) & 1))
+				break;
+			buf[cnt] = readl_relaxed(rng->base + PRNG_DATA_OUT_OFFSET);
+		}
+	}
+
+	if (cnt) {
+		printk(KERN_DEBUG "%s: adding %i words of randomness\n",
+			__func__, cnt);
+		add_device_randomness(buf, cnt * sizeof(unsigned long));
+	}
+	if (cnt < 16) {
+		printk(KERN_DEBUG "%s: starting hwrng\n", __func__);
+		reg_val = readl_relaxed(rng->base + PRNG_CONFIG_OFFSET);
+		if (reg_val & PRNG_HW_ENABLE) {
+			reg_val &= ~PRNG_HW_ENABLE;
+			writel_relaxed(reg_val,
+				rng->base + PRNG_CONFIG_OFFSET);
+			mb();
+		}
+		reg_val = readl_relaxed(rng->base + PRNG_LFSR_CFG_OFFSET);
+		if (reg_val & PRNG_LFSR_CFG_CLOCKS) {
+			reg_val &= PRNG_LFSR_CFG_MASK;
+			writel_relaxed(reg_val,
+				rng->base + PRNG_LFSR_CFG_OFFSET);
+			mb();
+		}
+		msleep(5);
+		reg_val = readl_relaxed(rng->base + PRNG_LFSR_CFG_OFFSET);
+		reg_val &= PRNG_LFSR_CFG_MASK;
+		reg_val |= PRNG_LFSR_CFG_CLOCKS;
+		writel_relaxed(reg_val, rng->base + PRNG_LFSR_CFG_OFFSET);
 		mb();
-
-		reg_val = readl_relaxed(msm_rng_dev->base + PRNG_CONFIG_OFFSET)
+		reg_val = readl_relaxed(rng->base + PRNG_CONFIG_OFFSET)
 						& PRNG_CONFIG_MASK;
 		reg_val |= PRNG_HW_ENABLE;
-		writel_relaxed(reg_val, msm_rng_dev->base + PRNG_CONFIG_OFFSET);
-
+		writel_relaxed(reg_val, rng->base + PRNG_CONFIG_OFFSET);
 		mb();
 	}
-	clk_disable_unprepare(msm_rng_dev->prng_clk);
-	if (msm_rng_dev->qrng_perf_client)
-		ret = msm_bus_scale_client_update_request(
-					msm_rng_dev->qrng_perf_client, 0);
+
+	clk_disable_unprepare(rng->prng_clk);
 
 	return 0;
 }
@@ -169,7 +266,6 @@ static int __devinit msm_rng_probe(struct platform_device *pdev)
 	struct msm_rng_device *msm_rng_dev = NULL;
 	void __iomem *base = NULL;
 	int error = 0;
-	struct msm_bus_scale_pdata *qrng_platform_support = NULL;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (res == NULL) {
@@ -193,39 +289,25 @@ static int __devinit msm_rng_probe(struct platform_device *pdev)
 	}
 	msm_rng_dev->base = base;
 
-	
-	if ((pdev->dev.of_node) && (of_property_read_bool(pdev->dev.of_node,
-					"qcom,msm-rng-iface-clk")))
-		msm_rng_dev->prng_clk = clk_get(&pdev->dev,
-							"iface_clk");
-	else
-		msm_rng_dev->prng_clk = clk_get(&pdev->dev, "core_clk");
+	/* create a handle for clock control */
+	msm_rng_dev->prng_clk = clk_get(&pdev->dev, "core_clk");
 	if (IS_ERR(msm_rng_dev->prng_clk)) {
 		dev_err(&pdev->dev, "failed to register clock source\n");
 		error = -EPERM;
 		goto err_clk_get;
 	}
 
-	
+	/* save away pdev and register driver data */
 	msm_rng_dev->pdev = pdev;
 	platform_set_drvdata(pdev, msm_rng_dev);
 
-	if (pdev->dev.of_node) {
-		
-		qrng_platform_support = msm_bus_cl_get_pdata(pdev);
-		msm_rng_dev->qrng_perf_client = msm_bus_scale_register_client(
-						qrng_platform_support);
-		if (!msm_rng_dev->qrng_perf_client)
-			pr_err("Unable to register bus client\n");
-	}
-
-	
+	/* Enable rng h/w */
 	error = msm_rng_enable_hw(msm_rng_dev);
 
 	if (error)
 		goto rollback_clk;
 
-	
+	/* register with hwrng framework */
 	msm_rng.priv = (unsigned long) msm_rng_dev;
 	error = hwrng_register(&msm_rng);
 	if (error) {
@@ -233,6 +315,17 @@ static int __devinit msm_rng_probe(struct platform_device *pdev)
 		error = -EPERM;
 		goto rollback_clk;
 	}
+
+#ifdef CONFIG_ARCH_RANDOM_HWRNG
+	/* Init the arch_random bits */
+	randbuf = kmalloc(RANDBUF_SIZE, GFP_KERNEL);
+	if (randbuf) {
+		schedule_work(&randbuf_work);
+		schedule_delayed_work(&randomness_work, HZ / 4);
+	} else {
+		printk(KERN_WARNING "%s: can't allocate buffer\n", __func__);
+	}
+#endif
 
 	return 0;
 
@@ -254,8 +347,6 @@ static int __devexit msm_rng_remove(struct platform_device *pdev)
 	clk_put(msm_rng_dev->prng_clk);
 	iounmap(msm_rng_dev->base);
 	platform_set_drvdata(pdev, NULL);
-	if (msm_rng_dev->qrng_perf_client)
-		msm_bus_scale_unregister_client(msm_rng_dev->qrng_perf_client);
 	kfree(msm_rng_dev);
 	return 0;
 }
