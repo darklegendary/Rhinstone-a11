@@ -5537,10 +5537,9 @@ void __init sched_init(void)
 	INIT_HLIST_HEAD(&init_task.preempt_notifiers);
 #endif
 
-#ifdef CONFIG_RT_MUTEXES
-	plist_head_init(&init_task.pi_waiters);
-#endif
-
+	/*
+	 * The boot idle thread does lazy MMU switching as well:
+	 */
 	atomic_inc(&init_mm.mm_count);
 	enter_lazy_tlb(&init_mm, current);
 
