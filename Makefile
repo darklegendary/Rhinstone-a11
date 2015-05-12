@@ -357,7 +357,7 @@ KERNELFLAGS	= -mcpu=cortex-a7 -mtune=cortex-a7 -marm -mfpu=neon-vfpv4 -mvectoriz
 		  $(GRAPHITEFLAGS)
 CFLAGS_MODULE   =
 AFLAGS_MODULE   =
-LDFLAGS_MODULE  =
+LDFLAGS_MODULE  = --strip-debug
 CFLAGS_KERNEL	= $(KERNELFLAGS)
 AFLAGS_KERNEL	= $(KERNELFLAGS)
 CFLAGS_GCOV	= -fprofile-arcs -ftest-coverage
