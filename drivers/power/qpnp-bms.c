@@ -31,7 +31,6 @@
 #include <linux/of_batterydata.h>
 #include <mach/devices_dtb.h>
 #include <mach/htc_gauge.h>
-#include <mach/htc_footprint.h>
 #include <linux/interrupt.h>
 #ifdef CONFIG_HTC_BATT_8960
 #include "mach/htc_battery_cell.h"
