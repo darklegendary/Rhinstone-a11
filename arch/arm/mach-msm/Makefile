@@ -332,7 +332,7 @@ obj-$(CONFIG_MACH_SAPPHIRE) += board-sapphire-keypad.o board-sapphire-panel.o
 obj-$(CONFIG_MACH_SAPPHIRE) += board-sapphire-mmc.o board-sapphire-wifi.o
 obj-$(CONFIG_MACH_SAPPHIRE) += board-sapphire-rfkill.o msm_vibrator.o
 
-obj-$(CONFIG_HTC_POWER_DEBUG) += htc_util.o htc_cpu_usage_stats.o
+obj-$(CONFIG_HTC_POWER_DEBUG) += htc_util.o
 CFLAGS_msm_vibrator.o += -Idrivers/staging/android
 CFLAGS_board-9615.o += -Idrivers/usb/gadget
 
@@ -467,11 +467,6 @@ obj-$(CONFIG_HTC_HEADSET_PMIC) += htc_headset_pmic.o
 obj-$(CONFIG_HTC_HEADSET_GPIO) += htc_headset_gpio.o
 obj-$(CONFIG_HTC_HEADSET_ONE_WIRE) += htc_headset_one_wire.o
 
-ifdef CONFIG_HTC_DEBUG
-obj-y += htc_debug_tools.o
-endif
-obj-$(CONFIG_HTC_DEBUG_FOOTPRINT) += htc_mnemosyne.o
-obj-$(CONFIG_HTC_DEBUG_FOOTPRINT) += htc_footprint.o
 obj-y += smlog.o
 
 obj-$(CONFIG_ARCH_RANDOM) += early_random.o
