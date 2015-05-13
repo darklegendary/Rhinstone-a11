@@ -3001,6 +3001,8 @@ preempt:
 }
 
 static struct task_struct *pick_next_task_fair(struct rq *rq)
+	__attribute__((hot));
+static struct task_struct *pick_next_task_fair(struct rq *rq)
 {
 	struct task_struct *p;
 	struct cfs_rq *cfs_rq = &rq->cfs;
@@ -3025,6 +3027,8 @@ static struct task_struct *pick_next_task_fair(struct rq *rq)
 /*
  * Account for a descheduled task:
  */
+static void put_prev_task_fair(struct rq *rq, struct task_struct *prev)
+	__attribute__((hot));
 static void put_prev_task_fair(struct rq *rq, struct task_struct *prev)
 {
 	struct sched_entity *se = &prev->se;
