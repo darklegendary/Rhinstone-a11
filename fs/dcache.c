@@ -78,7 +78,9 @@
  *   dentry1->d_lock
  *     dentry2->d_lock
  */
+
 int sysctl_vfs_cache_pressure __read_mostly = 100;
+
 EXPORT_SYMBOL_GPL(sysctl_vfs_cache_pressure);
 
 static __cacheline_aligned_in_smp DEFINE_SPINLOCK(dcache_lru_lock);
@@ -3091,4 +3093,5 @@ void __init vfs_caches_init(unsigned long mempages)
 	mnt_init();
 	bdev_cache_init();
 	chrdev_init();
+
 }
