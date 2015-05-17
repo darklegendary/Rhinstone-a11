@@ -28,13 +28,7 @@
 
 static struct wake_lock vbus_wake_lock;
 
-#define TRACE_BATT 0
-
-#if TRACE_BATT
-#define BATT(x...) printk(KERN_INFO "[BATT] " x)
-#else
 #define BATT(x...) do {} while (0)
-#endif
 
 /* rpc related */
 #define APP_BATT_PDEV_NAME		"rs30100001"
