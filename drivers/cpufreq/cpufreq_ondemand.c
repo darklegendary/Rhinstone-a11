@@ -921,10 +921,10 @@ static void dbs_check_cpu(struct cpu_dbs_info_s *this_dbs_info)
 		/* Calculate the next frequency proportional to load */
 		unsigned int freq_next;
 
-		if (load >= 25)
-			freq_next = policy->min + load * (policy->max - policy->min) / 100;
+		if (cur_load >= 25)
+			freq_next = policy->min + cur_load * (policy->max - policy->min) / 100;
 		else {
-			freq_next = load * policy->max / 100;
+			freq_next = cur_load * policy->max / 100;
 			if (freq_next <	300000)	{
 				freq_next = policy->min;
 			}
