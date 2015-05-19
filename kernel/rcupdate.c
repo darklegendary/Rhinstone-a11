@@ -52,7 +52,7 @@
 
 #include "rcu.h"
 
-module_param(rcu_expedited, int, 0);
+module_param(rcu_expedited, int, 1);
 
 #ifdef CONFIG_DEBUG_LOCK_ALLOC
 static struct lock_class_key rcu_lock_key;
