@@ -1,4 +1,4 @@
-/* Copyright (c) 2010-2011, Linaro Limited
+/* Copyright (c) 2010-2015, Linaro Limited
    All rights reserved.
 
    Redistribution and use in source and binary forms, with or without
@@ -27,23 +27,20 @@
    THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
    (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
    OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ */
 
+/*
    Written by Dave Gilbert <david.gilbert@linaro.org>
-   Adapted to Bionic by Bernhard Rosenkraenzer <Bernhard.Rosenkranzer@linaro.org>
 
    This memchr routine is optimised on a Cortex-A9 and should work on
    all ARMv7 processors.   It has a fast past for short sizes, and has
    an optimised path for large data sets; the worst case is finding the
-   match early in a large data set. */
+   match early in a large data set.
+
+ */
 
 #include <linux/linkage.h>
 
-@ 2011-02-07 david.gilbert@linaro.org
-@    Extracted from local git a5b438d861
-@ 2011-07-14 david.gilbert@linaro.org
-@    Import endianness fix from local git ea786f1b
-@ 2011-12-07 david.gilbert@linaro.org
-@    Removed unneeded cbz from align loop
 
 	.syntax unified
 	.arch armv7-a
@@ -54,11 +51,13 @@
 #else
 #define CHARTSTMASK(c) 1<<(c*8)
 #endif
+	.text
+	.thumb
 
 @ ---------------------------------------------------------------------------
 	.thumb_func
-	.p2align 4,,15
 ENTRY(memchr)
+	.p2align 4,,15
 	@ r0 = start of memory to scan
 	@ r1 = character to look for
 	@ r2 = length
