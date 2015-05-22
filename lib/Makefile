@@ -2,11 +2,6 @@
 # Makefile for some libs needed in the kernel.
 #
 
-ifdef CONFIG_FUNCTION_TRACER
-ORIG_CFLAGS := $(KBUILD_CFLAGS)
-KBUILD_CFLAGS = $(subst -pg,,$(ORIG_CFLAGS))
-endif
-
 lib-y := ctype.o string.o vsprintf.o cmdline.o \
 	 rbtree.o radix-tree.o sradix-tree.o dump_stack.o timerqueue.o\
 	 idr.o int_sqrt.o extable.o prio_tree.o \
@@ -27,11 +22,6 @@ obj-y += bcd.o div64.o sort.o parser.o halfmd4.o debug_locks.o random32.o \
 	 bsearch.o find_last_bit.o find_next_bit.o llist.o
 obj-y += kstrtox.o
 obj-$(CONFIG_TEST_KSTRTOX) += test-kstrtox.o
-
-ifeq ($(CONFIG_DEBUG_KOBJECT),y)
-CFLAGS_kobject.o += -DDEBUG
-CFLAGS_kobject_uevent.o += -DDEBUG
-endif
 
 lib-$(CONFIG_HOTPLUG) += kobject_uevent.o
 obj-$(CONFIG_GENERIC_IOMAP) += iomap.o
