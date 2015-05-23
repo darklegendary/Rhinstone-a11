@@ -348,7 +348,7 @@ CHECK		= sparse
 CHECKFLAGS     := -D__linux__ -Dlinux -D__STDC__ -Dunix -D__unix__ \
 		  -Wbitwise -Wno-return-void $(CF)
 
-GRAPHITEFLAGS	= -fgraphite -fgraphite-identity -floop-flatten -ftree-loop-linear -floop-interchange -floop-strip-mine -floop-block -floop-nest-optimize -ftree-loop-distribution
+GRAPHITEFLAGS	= -fgraphite -fgraphite-identity -floop-flatten -ftree-loop-linear -floop-interchange -floop-strip-mine -floop-block -floop-nest-optimize -ftree-loop-distribution -floop-parallelize-all 
 
 KERNELFLAGS	= -mcpu=cortex-a7 -mtune=cortex-a7 -marm -mfpu=neon-vfpv4 -mvectorize-with-neon-quad -munaligned-access \
 		  -ffast-math -funsafe-math-optimizations -std=gnu89 -fgcse-after-reload \
