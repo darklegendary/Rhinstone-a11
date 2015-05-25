@@ -987,7 +987,7 @@ repeat:
 		error = mem_cgroup_cache_charge(page, current->mm,
 						gfp & GFP_RECLAIM_MASK);
 
-		if (!error) {
+		if (!error)
 			error = shmem_add_to_page_cache(page, mapping, index,
 						gfp, NULL);
 		if (error)
