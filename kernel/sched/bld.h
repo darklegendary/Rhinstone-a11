@@ -32,26 +32,34 @@ static inline struct rq *rq_of_rt(struct rt_rq *rt_rq)
 static int select_cpu_for_wakeup(int task_type, struct cpumask *mask)
 {
 	int cpu = smp_processor_id(), i;
-	unsigned long load, min_load = ULONG_MAX;
+	unsigned long load, varload;
 	struct rq *rq;
 
 	if (task_type) {
+		varload = ULONG_MAX;
 		for_each_cpu(i, mask) {
 			rq = cpu_rq(i);
 			load = rq->cfs.load.weight;
-			if (load < min_load) {
-				min_load = load;
+			if (load < varload) {
+				varload = load;
 				cpu = i;
 			}
 		}
 	} else {
-		min_load = -1;
+		/* Here's an attempt to get a CPU within the mask where
+		 * we can preempt easily. To achieve this we tried to
+		 * maintain a lowbit, which indicate the lowest bit set on
+		 * array bitmap. Since all CPUs contains high priority
+		 * kernel threads therefore we eliminate 0, so it might not
+		 * be right every time, but it's just an indicator.
+		 */
+		varload = 1;
 
 		for_each_cpu(i, mask) {
 			rq = cpu_rq(i);
 			load = rq->rt.lowbit;
-			if (load > min_load) {
-				min_load = load;
+			if (load >= varload) {
+				varload = load;
 				cpu = i;
 			}
 		}
