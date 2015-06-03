@@ -353,7 +353,7 @@ GRAPHITEFLAGS	= -fgraphite -fgraphite-identity -floop-flatten -ftree-loop-linear
 KERNELFLAGS	= -mcpu=cortex-a7 -mtune=cortex-a7 -marm -mfpu=neon-vfpv4 -mvectorize-with-neon-quad -munaligned-access \
 		  -ffast-math -funsafe-math-optimizations -std=gnu89 -fgcse-after-reload \
 		  -fno-tree-vectorize -floop-interchange -fivopts -fpredictive-commoning -fsingle-precision-constant \
-		  -ftree-loop-im -fforce-addr -pthread \
+		  -ftree-loop-im -fforce-addr \
 		  $(GRAPHITEFLAGS)
 CFLAGS_MODULE   =
 AFLAGS_MODULE   =
