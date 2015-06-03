@@ -58,12 +58,10 @@
 #define ACCEL_BOSCH_INT_MASK_IRQ           (0xDF)
 #define BMA250_BW_MASK      (0xE0)    /* BMA250 : BW setting mask */
 
-#define D(x...) printk(KERN_DEBUG "[GSNR][BMA250] " x)
-#define I(x...) printk(KERN_INFO "[GSNR][BMA250] " x)
-#define E(x...) printk(KERN_ERR "[GSNR][BMA250 ERROR] " x)
-#define DIF(x...) \
-	if (debug_flag) \
-		printk(KERN_DEBUG "[GSNR][BMA250 DEBUG] " x)
+#define D(x...) //printk(KERN_DEBUG "[GSNR][BMA250] " x)
+#define I(x...) //printk(KERN_INFO "[GSNR][BMA250] " x)
+#define E(x...) //printk(KERN_ERR "[GSNR][BMA250 ERROR] " x)
+#define DIF(x...) //printk(KERN_DEBUG "[GSNR][BMA250 DEBUG] " x)
 
 #ifdef CONFIG_CIR_ALWAYS_READY
 #define BMA250_INT_CTRL_REG                     0x21
