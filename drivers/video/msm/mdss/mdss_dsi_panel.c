@@ -84,13 +84,6 @@ static void mdss_dsi_panel_bklt_pwm(struct mdss_dsi_ctrl_pdata *ctrl, int level)
 	duty = level * ctrl->pwm_period;
 	duty /= ctrl->bklt_max;
 
-	pr_debug("%s: bklt_ctrl=%d pwm_period=%d pwm_gpio=%d pwm_lpg_chan=%d\n",
-			__func__, ctrl->bklt_ctrl, ctrl->pwm_period,
-				ctrl->pwm_pmic_gpio, ctrl->pwm_lpg_chan);
-
-	pr_debug("%s: ndx=%d level=%d duty=%d\n", __func__,
-					ctrl->ndx, level, duty);
-
 	if (ctrl->pwm_enabled) {
 		pwm_disable(ctrl->pwm_bl);
 		ctrl->pwm_enabled = 0;
@@ -170,8 +163,6 @@ static unsigned char shrink_pwm(int val, int pwm_min, int pwm_default, int pwm_m
         } else if (val > BRI_SETTING_MAX)
                 shrink_br = pwm_max;
 
-        PR_DISP_INFO("brightness orig=%d, transformed=%d\n", val, shrink_br);
-
         return shrink_br;
 }
 static unsigned char linear_pwm(int val, int max_brt, int bl_max)
@@ -179,8 +170,6 @@ static unsigned char linear_pwm(int val, int max_brt, int bl_max)
 	unsigned char bl_pwm  = BRI_SETTING_MAX;
 
 	bl_pwm = val * bl_max / max_brt;
-
-	PR_DISP_INFO("%s:brightness=%d, bl_pwm=%d\n", __func__,val, bl_pwm);
 	return bl_pwm;
 }
 
@@ -207,7 +196,6 @@ static unsigned int bl_to_brightness(int val, int brt_dim, int brt_min, int brt_
                 (BRI_SETTING_MAX - BRI_SETTING_EXTRA) + brt_extra;
         } else if (val > BRI_SETTING_MAX)
                 brt_val = brt_max;
-	PR_DISP_INFO("%s:level=%d, brightness=%d", __func__,val, brt_val);
 	return brt_val;
 }
 
@@ -221,8 +209,6 @@ static void mdss_dsi_panel_bklt_dcs(struct mdss_dsi_ctrl_pdata *ctrl, int level)
 {
 	struct dcs_cmd_req cmdreq;
 	struct mdss_panel_info *pinfo = &(ctrl->panel_data.panel_info);
-
-	pr_debug("%s: level=%d\n", __func__, level);
 
 	if (!pinfo->act_brt)
 		led_pwm1[1] = (unsigned char)shrink_pwm(level, ctrl->pwm_min, ctrl->pwm_default, ctrl->pwm_max);
@@ -260,12 +246,9 @@ void mdss_dsi_panel_reset(struct mdss_panel_data *pdata, int enable)
 	}
 
 	if (!gpio_is_valid(ctrl_pdata->rst_gpio)) {
-		pr_debug("%s:%d, reset line not configured\n",
-			   __func__, __LINE__);
 		return;
 	}
 
-	pr_debug("%s: enable = %d\n", __func__, enable);
 	pinfo = &(ctrl_pdata->panel_data.panel_info);
 
 	if (enable) {
@@ -422,7 +405,6 @@ static void mdss_dsi_display_on(struct mdss_panel_data *pdata)
 	if (ctrl->display_on_wait)
 		msleep(ctrl->display_on_wait);
 
-	PR_DISP_INFO("%s: pid=%d\n", __func__, current->pid);
 	mdss_dsi_panel_cmds_send(ctrl, &ctrl->display_on_cmds);
 }
 
@@ -444,8 +426,6 @@ static int mdss_dsi_panel_on(struct mdss_panel_data *pdata)
 				panel_data);
 	mipi  = &pdata->panel_info.mipi;
 
-	pr_debug("%s: ctrl=%p ndx=%d\n", __func__, ctrl, ctrl->ndx);
-
 	if (pdata->panel_info.first_power_on == 1) {
 		pdata->panel_info.first_power_on = 0;
 		pr_info("panel on already\n");
@@ -458,7 +438,6 @@ static int mdss_dsi_panel_on(struct mdss_panel_data *pdata)
 	else if (ctrl->pwm_ctl_type == PWM_EXT)
 		mdss_dsi_panel_bklt_dcs(ctrl, pdata->panel_info.max_brt);
 
-	PR_DISP_INFO("%s:-\n", __func__);
 	return 0;
 }
 
@@ -475,8 +454,6 @@ static int mdss_dsi_panel_off(struct mdss_panel_data *pdata)
 	ctrl = container_of(pdata, struct mdss_dsi_ctrl_pdata,
 				panel_data);
 
-	pr_debug("%s: ctrl=%p ndx=%d\n", __func__, ctrl, ctrl->ndx);
-
 	mipi  = &pdata->panel_info.mipi;
 
 	if(pwrctrl_pdata.bkl_config)
@@ -490,7 +467,6 @@ static int mdss_dsi_panel_off(struct mdss_panel_data *pdata)
 	else if (ctrl->pwm_ctl_type == PWM_EXT)
 		led_trigger_event(bl_led_i2c_trigger, 0); 
 
-	PR_DISP_INFO("%s:-\n", __func__);
 #ifdef CONFIG_POWERSUSPEND
 	set_power_suspend_state_panel_hook(POWER_SUSPEND_ACTIVE);
 #endif
@@ -798,8 +774,6 @@ static int mdss_panel_parse_dt(struct device_node *np,
 		pinfo->mipi.mode, tmp,
 		&(pinfo->mipi.dst_format));
 	if (rc) {
-		pr_debug("%s: problem determining dst format. Set Default\n",
-			__func__);
 		pinfo->mipi.dst_format =
 			DSI_VIDEO_DST_FORMAT_RGB888;
 	}
@@ -815,8 +789,6 @@ static int mdss_panel_parse_dt(struct device_node *np,
 	else if (!strncmp(pdest, "display_2", 9))
 		pinfo->pdest = DISPLAY_2;
 	else {
-		pr_debug("%s: pdest not specified. Set Default\n",
-							__func__);
 		pinfo->pdest = DISPLAY_1;
 	}
 	rc = of_property_read_u32(np, "qcom,mdss-dsi-h-front-porch", &tmp);
@@ -845,8 +817,6 @@ static int mdss_panel_parse_dt(struct device_node *np,
 		if (!strncmp(data, "bl_ctrl_wled", 12)) {
 			led_trigger_register_simple("bkl-trigger",
 				&bl_led_trigger);
-			pr_debug("%s: SUCCESS-> WLED TRIGGER register\n",
-				__func__);
 			ctrl_pdata->bklt_ctrl = BL_WLED;
 		} else if (!strncmp(data, "bl_ctrl_pwm", 11)) {
 			ctrl_pdata->bklt_ctrl = BL_PWM;
@@ -1037,7 +1007,6 @@ static int mdss_panel_parse_dt(struct device_node *np,
 	ctrl_pdata->pwm_ctl_type = (!rc ? tmp : 0);
 	if(ctrl_pdata->pwm_ctl_type == PWM_PMIC) {
 		led_trigger_register_simple("bkl-trigger", &bl_led_trigger);
-		PR_DISP_INFO("%s: PWM type is PMIC\n", __func__);
 	}
 
 	rc = of_property_read_u32(np, "htc,mdss-camera-blk", &tmp);
@@ -1159,7 +1128,6 @@ int mdss_dsi_panel_init(struct device_node *node,
 		return -ENODEV;
 	}
 
-	pr_debug("%s:%d\n", __func__, __LINE__);
 	panel_name = of_get_property(node, "qcom,mdss-dsi-panel-name", NULL);
 	if (!panel_name)
 		pr_info("%s:%d, Panel name not specified\n",
