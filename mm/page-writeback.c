@@ -1678,7 +1678,7 @@ void writeback_set_ratelimit(void)
 }
 
 static int
-ratelimit_handler(struct notifier_block *self, unsigned long u, void *v)
+ratelimit_handler(struct notifier_block *self, unsigned long action, void *hcpu)
 {
 	switch (action & ~CPU_TASKS_FROZEN) {
 	case CPU_ONLINE:
