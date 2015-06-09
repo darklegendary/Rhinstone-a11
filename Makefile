@@ -378,7 +378,7 @@ KBUILD_CFLAGS   := -Wall -Wundef -Wstrict-prototypes -Wno-trigraphs \
 		   -Wno-format-security \
 		   -fno-delete-null-pointer-checks \
 		   --param l1-cache-size=16 --param l1-cache-line-size=16 --param l2-cache-size=1024 \
-		   $(KERNELFLAGS)
+		   -ftree-parallelize-loops=4 $(KERNELFLAGS)
 			
 KBUILD_AFLAGS_KERNEL :=
 KBUILD_CFLAGS_KERNEL :=

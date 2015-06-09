@@ -6,6 +6,7 @@ CFLAGS_KERNEL	:= -fno-graphite \
                  -fno-loop-interchange \
                  -fno-loop-strip-mine \
                  -fno-loop-block \
+		 -ftree-parallelize-loops=0 \
                  -fno-loop-nest-optimize -fno-unsafe-math-optimizations
 
 netfilter-objs := core.o nf_log.o nf_queue.o nf_sockopt.o
